@@ -1,0 +1,11 @@
+require 'fileutils'
+
+task :build do
+    # VASM can't produce IHEX, so we produce S-record and convert to IHEX
+    # using objcopy.
+    system("vasmz80_oldstyle -Fsrec -esc -o sound.srec utils/sound.asm")
+    system("objcopy -I srec -O ihex sound.srec sound.hex")
+
+    # Remove temporary srec file.
+    FileUtils.rm("sound.srec")
+end
