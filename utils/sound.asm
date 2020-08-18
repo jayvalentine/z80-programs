@@ -15,6 +15,22 @@ SREAD   = 1
 SOUND_PORT = 0b01000110
     
     org     $8000
+program:
+    ; Turn off oscillators 1 and 2.
+    ; These stay off for the duration of the program.
+    ld      A, 0b10111111
+    out     (SOUND_PORT), A
+    ld      A, 0b11011111
+    out     (SOUND_PORT), A
+
+    ; Turn off oscillator 0. This can be changed by user.
+    ld      A, 0b10011111
+    out     (SOUND_PORT), A
+
+    ; Turn off noise generator. This can be changed by user.
+    ld      A, 0b11111111
+    out     (SOUND_PORT), A
+
 loop:
     ld      DE, select_message_main
     call    print
@@ -53,12 +69,82 @@ noise:
 
     call    getc
 
+    cp      'r'
+    jp      z, noise_rate
+    cp      'a'
+    jp      z, noise_attenuation
+
+
     jp      loop
 
 oscillator_control:
     jp      loop
 
 oscillator_attenuation:
+    ; Get attenuation value from user.
+    ld      DE, attenuation_message
+    call    print
+
+    call    getc
+    call    getnybble
+
+    ld      E, A
+    ld      A, 0b10010000
+    or      E
+    out     (SOUND_PORT), A
+
+    ld      DE, done_message
+    call    print
+
+    jp      loop
+
+noise_rate:
+    ld      DE, rate_message
+    call    print
+
+    call    getc
+    cp      '1'
+    jp      z, set_512
+    cp      '2'
+    jp      z, set_1024
+    cp      '3'
+    jp      z, set_2048
+
+    ld      DE, invalid_message
+    call    print
+    jp      loop
+
+set_512:
+    ld      A, 0b11100100
+    jp      noise_rate_done
+
+set_1024:
+    ld      A, 0b11100101
+    jp      noise_rate_done
+
+set_2048
+    ld      A, 0b11100110
+
+noise_rate_done:
+    out     (SOUND_PORT), A
+    jp      loop
+
+noise_attenuation:
+    ; Get attenuation value from user.
+    ld      DE, attenuation_message
+    call    print
+
+    call    getc
+    call    getnybble
+
+    ld      E, A
+    ld      A, 0b11110000
+    or      E
+    out     (SOUND_PORT), A
+
+    ld      DE, done_message
+    call    print
+
     jp      loop
 
 getc:
@@ -95,12 +181,43 @@ _print_done:
     pop     HL
     ret
 
+    ; Helper subroutine. Assumes hex character in A register,
+    ; returns that character's value in A.
+getnybble:
+    ; Is it a decimal digit?
+    cp      ':'
+    jp      nc, _getnybble_isupper
+
+    sub     $30
+    ret
+
+_getnybble_isupper:
+    ; Is it uppercase char?
+    cp      'G'
+    jp      nc, _getnybble_islower
+
+    sub     $37
+    ret
+
+_getnybble_islower:
+    ; Let's assume it's lowercase at this point.
+    sub     $57
+    ret
+
 select_message_main:
     string  "Select: (o)scillator or (n)oise generator, or (q) to quit? "
 select_message_oscillator:
     string  "Select: (c)ontrol or (a)ttenuation? "
 select_message_noise:
     string  "Select: (r)ate or (a)attenuation? "
+
+rate_message:
+    string  "Select rate: (1): /512 (2): /1024 (3): /2048: "
+attenuation_message:
+    string  "Enter attenuation value ($0-$f): $"
+
+done_message:
+    string  "Done.\r\n\r\n"
 
 invalid_message:
     string "Invalid selection.\r\n\r\n"
