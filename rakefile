@@ -1,6 +1,30 @@
 require 'fileutils'
 
+CLK_SPEED_HZ = 3_686_400
+
 task :build do
+    File.open("utils/midi.inc", "w+") do |f|
+        for m in 0..127 do
+            exp = (m.to_f - 69)/12
+            freq = (2 ** exp) * 440
+
+            n = (CLK_SPEED_HZ.to_f / (32 * freq)).round
+
+            bin = "%010b" % n
+            if bin.size > 10
+                puts "Warning: Frequency #{freq.round(2)} (\##{m}) out of range for 10-bit expression."
+                bin = "1111111111"
+            end
+            
+            upper = "00" + bin[0..5]
+            lower = "0000" + bin[6..9]
+
+            f.puts "    ; Note \##{m} (#{freq}Hz)"
+            f.puts "    byte    0b#{lower}"
+            f.puts "    byte    0b#{upper}"
+        end
+    end
+
     # VASM can't produce IHEX, so we produce S-record and convert to IHEX
     # using objcopy.
     system("vasmz80_oldstyle -Fsrec -esc -o sound.srec utils/sound.asm")

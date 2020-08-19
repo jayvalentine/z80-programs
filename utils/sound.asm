@@ -78,6 +78,44 @@ noise:
     jp      loop
 
 oscillator_control:
+    ld      DE, select_freq_message
+    call    print
+
+    ; Get upper half in C.
+    call    getc
+    call    getnybble
+    sla     A
+    sla     A
+    sla     A
+    sla     A
+    ld      C, A
+
+    ; Get bottom half, OR and move into A.
+    call    getc
+    call    getnybble
+    or      C
+    
+    ; Note index now in A.
+    ; Shift up to form index into table.
+    sla     A
+    ld      C, A
+    ld      B, 0
+
+    ld      HL, midi_lut
+    add     HL, BC
+
+    ; Load lower half and send to oscillator.
+    ld      A, (HL)
+    or      A, 0b10000000
+    out     (SOUND_PORT), A
+    inc     HL
+
+    ld      A, (HL)
+    out     (SOUND_PORT), A
+
+    ld      DE, done_message
+    call    print
+
     jp      loop
 
 oscillator_attenuation:
@@ -215,9 +253,14 @@ rate_message:
     string  "Select rate: (1): /512 (2): /1024 (3): /2048: "
 attenuation_message:
     string  "Enter attenuation value ($0-$f): $"
+select_freq_message:
+    string  "Enter oscillator midi note: ($00-$7f): $"
 
 done_message:
     string  "Done.\r\n\r\n"
 
 invalid_message:
     string "Invalid selection.\r\n\r\n"
+
+midi_lut:
+    include "midi.inc"

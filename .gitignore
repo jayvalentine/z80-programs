@@ -1,2 +1,5 @@
+# Auto-generated files
+*.inc
+
 # Built artefacts
 *.hex
