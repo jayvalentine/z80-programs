@@ -2,34 +2,30 @@ require 'fileutils'
 
 CLK_SPEED_HZ = 3_686_400
 
-task :build do
-    File.open("utils/midi.inc", "w+") do |f|
-        for m in 0..127 do
-            exp = (m.to_f - 69)/12
-            freq = (2 ** exp) * 440
+HERE = __dir__
+CONFIG = File.expand_path(File.join(HERE, 'lib/config/modularz80.cfg'))
 
-            n = (CLK_SPEED_HZ.to_f / (32 * freq)).round
+LIB_INCLUDE = File.join(HERE, 'lib/include')
 
-            bin = "%010b" % n
-            if bin.size > 10
-                puts "Warning: Frequency #{freq.round(2)} (\##{m}) out of range for 10-bit expression."
-                bin = "1111111111"
-            end
-            
-            upper = "00" + bin[0..5]
-            lower = "0000" + bin[6..9]
+CRT0 = File.join(HERE, 'lib/crt0.asm')
 
-            f.puts "    ; Note \##{m} (#{freq}Hz)"
-            f.puts "    byte    0b#{lower}"
-            f.puts "    byte    0b#{upper}"
-        end
-    end
+task :crt0 do
+    system("z80asm -mz80 -R -o#{File.basename(CRT0, ".asm")}.o #{CRT0}")
+end
 
-    # VASM can't produce IHEX, so we produce S-record and convert to IHEX
-    # using objcopy.
-    system("vasmz80_oldstyle -Fsrec -esc -o sound.srec utils/sound.asm")
-    system("objcopy -I srec -O ihex sound.srec sound.hex")
+task :libgcc do
+    FileUtils.mkdir "lib/libgcc/tmp"
 
-    # Remove temporary srec file.
-    FileUtils.rm("sound.srec")
+    system("m4 lib/libgcc/stdio.asm > lib/libgcc/tmp/stdio.asm")
+    system("zcc +#{CONFIG} -nostdlib -c -o lib/libgcc.o lib/libgcc/tmp/stdio.asm")
+end
+
+rule ".o" => ".c" do |t|
+    system("zcc +#{CONFIG} -nostdlib -I#{LIB_INCLUDE} -c -o #{t.name} #{t.source}")
+end
+
+task :test => ["test.o", :crt0, :libgcc] do
+    system("z80asm -r0x8000 -b test.o #{CRT0}")
+    system("appmake +hex -b test.bin --org 0x8000 -o test.hex")
+    system("z88dk-dis -o 0x8000 test.bin > test.diss")
 end
