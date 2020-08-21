@@ -4,32 +4,74 @@
 #include <stdio.h>
 #include <midi.h>
 
-unsigned char file[256];
+char file[4096];
+
+#define NOTE_ON (char)0x0f
+#define NOTE_OFF (char)0x0e
+#define MIDI_EOF (char)0x00
+
+void sleep_ticks(unsigned int ticks) __z88dk_fastcall;
 
 int main()
 {
     midi_init(0b01000110);
-    
+
     puts("Waiting for file transfer:\r\n");
 
-    for (unsigned int i = 0; i < 256; i++)
+    char * file_ptr = &file[0];
+    while (1)
     {
-        int in = getchar();
-        if (in == EOF) break;
+        char type;
+        char note;
+        char byte0;
+        char byte1;
+        
+        type = getchar();
+        if (type == MIDI_EOF) break;
 
-        putchar(in); // Echo to user.
+        note = getchar();
+        byte0 = getchar();
+        byte1 = getchar();
 
-        file[i] = (char)in;
+        *file_ptr++ = type;
+        *file_ptr++ = note;
+        *file_ptr++ = byte0;
+        *file_ptr++ = byte1;
+
+        // Get terminating line feed.
+        getchar();
+        putchar('.');
     }
 
     puts("File transfer complete.\r\n");
 
-    for (unsigned int i = 0; i < 256; i++)
+    // Process commands in file.
+    file_ptr = &file[0];
+    while (1)
     {
-        midi_note_on(file[i]);
-        for (unsigned int j = 0; j < 60000; j++);
-        midi_note_off(file[i]);
+        char type = *file_ptr++;
+
+        if (type == MIDI_EOF) break;
+
+        char note = *file_ptr++;
+        unsigned int byte0 = *file_ptr++;
+        unsigned int byte1 = ((unsigned int)(*file_ptr++)) << 8;
+
+        sleep_ticks(byte1 | byte0);
+
+        if (type == NOTE_ON)
+        {
+            midi_note_on(note);
+            putchar('!');
+        }
+        else if (type == NOTE_OFF)
+        {
+            midi_note_off(note);
+            putchar('.');
+        }
     }
+
+    puts("Done\r\n");
 
     return 0;
 }

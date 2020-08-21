@@ -37,7 +37,7 @@ Dir.glob("lib/*").each do |path|
 end
 
 rule ".o" => ".c" do |t|
-    system("zcc +#{CONFIG} -O2 -c -o #{t.name} #{t.source}")
+    system("zcc +#{CONFIG} -compiler=sccz80 -O2 -c -o #{t.name} #{t.source}")
 end
 
 rule ".o" => ".asm" do |t|
@@ -65,11 +65,11 @@ Dir.glob("utils/*").each do |path|
         end
     end
 
-    dependencies = Rake::FileList.new(File.join("utils", app, "*.c"))
+    dependencies = Rake::FileList.new([File.join("utils", app, "*.c"), File.join("utils", app, "*.asm")])
 
     desc "Build application '#{app}'"
     task app.to_sym => ([:stdlib, "lib/crt0.o"] + extra_includes.map { |i| i.to_sym }) do
-        success = system("zcc +#{CONFIG} -O2 -Llib/ -I#{LIB_INCLUDE} --no-crt -lstdlib #{extra_includes.map { |i| "-l#{i}" }.join(" ")} -Cl\"-r0x8000\" -o utils/#{app}.bin #{dependencies.to_a.join(' ')} lib/crt0.o")
+        success = system("zcc +#{CONFIG} -compiler=sccz80 -O2 -SO2 -Llib/ -I#{LIB_INCLUDE} --no-crt -lstdlib #{extra_includes.map { |i| "-l#{i}" }.join(" ")} -Cl\"-r0x8000\" -o utils/#{app}.bin lib/crt0.o #{dependencies.to_a.join(' ')}")
 
         if success
             system("appmake +hex -b utils/#{app}.bin --org 0x8000 -o utils/#{app}.hex")
