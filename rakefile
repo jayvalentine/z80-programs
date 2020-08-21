@@ -1,3 +1,5 @@
+require 'rake/clean'
+
 require 'fileutils'
 
 CLK_SPEED_HZ = 3_686_400
@@ -7,25 +9,39 @@ CONFIG = File.expand_path(File.join(HERE, 'lib/config/modularz80.cfg'))
 
 LIB_INCLUDE = File.join(HERE, 'lib/include')
 
-CRT0 = File.join(HERE, 'lib/crt0.asm')
+CRT0 = FileList.new(File.join(HERE, 'lib/crt0.asm'))
 
-task :crt0 do
-    system("z80asm -mz80 -R -o#{File.basename(CRT0, ".asm")}.o #{CRT0}")
-end
+CLEAN.include("lib/*.lib", "**/*.o")
+CLEAN.include("**/tmp")
 
-task :stdlib do
-    FileUtils.mkdir "lib/stdlib/tmp" unless Dir.exist? "lib/stdlib/tmp"
+LIB_EXCLUDE = ["config", "include", "crt0.asm"]
 
-    system("m4 lib/stdlib/stdio.asm > lib/stdlib/tmp/stdio.asm")
-    system("zcc +#{CONFIG} -nostdlib -c -o lib/stdlib.o lib/stdlib/tmp/stdio.asm")
-    system("z80asm -xlib/stdlib.lib lib/stdlib.o")
+Dir.glob("lib/*").each do |path|
+    lib = File.basename(path)
+    next if LIB_EXCLUDE.include? lib
+
+    dependencies = Rake::FileList.new(File.join("lib", lib, "*.asm"))
+    
+    desc "Build library '#{lib}'"
+    task lib.to_sym => dependencies.ext('.o') do
+        system("z80asm -xlib/#{lib}.lib #{dependencies.ext('.o').to_a.join(" ")}")
+    end
 end
 
 rule ".o" => ".c" do |t|
     system("zcc +#{CONFIG} -nostdlib -I#{LIB_INCLUDE} -c -o #{t.name} #{t.source}")
 end
 
-task :test => ["test.o", :crt0, :stdlib] do
+rule ".o" => ".asm" do |t|
+    temp_dir = File.join(File.dirname(t.source), "tmp")
+    FileUtils.mkdir(temp_dir) unless Dir.exist?(temp_dir)
+
+    system("m4 #{t.source} > #{temp_dir}/#{File.basename(t.source)}")
+    system("z80asm -o#{t.name} #{temp_dir}/#{File.basename(t.source)}")
+end
+
+
+task :test => ["test.o", CRT0.ext('.o'), :stdlib] do
     system("z80asm -Llib/ -lstdlib.lib -r0x8000 -b test.o #{CRT0}")
     system("appmake +hex -b test.bin --org 0x8000 -o test.hex")
     system("z88dk-dis -o 0x8000 test.bin > test.diss")
