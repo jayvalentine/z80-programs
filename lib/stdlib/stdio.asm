@@ -1,5 +1,7 @@
     ; Implementation of stdio portion of standard library.
 
+    PUBLIC  _puts
+
     ; Syscall macro.
 define(zsys, `ld      A, $1 << 1
     rst     48')
