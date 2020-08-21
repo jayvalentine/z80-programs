@@ -13,22 +13,22 @@ void midi_init(unsigned char port)
     out(0b11111111);
 }
 
-void midi_note_on(unsigned char note)
+void midi_note_on(unsigned char track, unsigned char note)
 {
     unsigned char byte0 = midi_table[note << 1];
     unsigned char byte1 = midi_table[(note << 1) + 1];
 
     byte0 |= 10000000;
+    byte0 |= track;
     out(byte0);
-
     out(byte1);
 
-    out(0b10010000);
+    out(0b10010000 | track);
 }
 
-void midi_note_off(unsigned char note)
+void midi_note_off(unsigned char track, unsigned char note)
 {
-    out(0b10011111);
+    out(0b10011111 | track);
 }
 
 #asm
