@@ -2,13 +2,14 @@
 // By Jay Valentine.
 
 #include <stdio.h>
+#include <midi.h>
 
 unsigned char file[256];
-unsigned int file_ptr;
 
 int main()
 {
-    file_ptr = 0;
+    midi_init(0b01000110);
+    
     puts("Waiting for file transfer:\r\n");
 
     for (unsigned int i = 0; i < 256; i++)
@@ -18,10 +19,17 @@ int main()
 
         putchar(in); // Echo to user.
 
-        file[file_ptr++] = (char)in;
+        file[i] = (char)in;
     }
 
     puts("File transfer complete.\r\n");
+
+    for (unsigned int i = 0; i < 256; i++)
+    {
+        midi_note_on(file[i]);
+        for (unsigned int j = 0; j < 60000; j++);
+        midi_note_off(file[i]);
+    }
 
     return 0;
 }

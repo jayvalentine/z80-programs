@@ -51,14 +51,25 @@ end
 # Define a task for each application.
 Dir.glob("utils/*").each do |path|
     next if Dir.empty? path
+    next unless File.directory? path
+    
     app = File.basename(path)
+
+    extra_includes = []
+
+    File.open(File.join(path, "app.cfg"), "r") do |f|
+        f.each_line do |l|
+            if (m = /INCLUDE=(.+)$/.match(l))
+                extra_includes << m[1]
+            end
+        end
+    end
 
     dependencies = Rake::FileList.new(File.join("utils", app, "*.c"))
 
     desc "Build application '#{app}'"
-    task app.to_sym => [:stdlib, "lib/crt0.o"] do
-        success = system("zcc +#{CONFIG} -O2 -Llib/ -I#{LIB_INCLUDE} --no-crt -lstdlib -Cl\"-r0x8000\" -o utils/#{app}.bin #{dependencies.to_a.join(' ')} lib/crt0.o")
-#        success = system("z80asm -Llib/ -lstdlib -zorg0x8000 -outils/#{app}.bin -b #{dependencies.ext('.o').to_a.join(" ")} lib/crt0.o")
+    task app.to_sym => ([:stdlib, "lib/crt0.o"] + extra_includes.map { |i| i.to_sym }) do
+        success = system("zcc +#{CONFIG} -O2 -Llib/ -I#{LIB_INCLUDE} --no-crt -lstdlib #{extra_includes.map { |i| "-l#{i}" }.join(" ")} -Cl\"-r0x8000\" -o utils/#{app}.bin #{dependencies.to_a.join(' ')} lib/crt0.o")
 
         if success
             system("appmake +hex -b utils/#{app}.bin --org 0x8000 -o utils/#{app}.hex")
