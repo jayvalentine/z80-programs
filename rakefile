@@ -11,14 +11,14 @@ LIB_INCLUDE = File.join(HERE, 'lib/include')
 
 CRT0 = FileList.new(File.join(HERE, 'lib/crt0.asm'))
 
-CLEAN.include("lib/*.lib", "**/*.o")
+CLEAN.include("lib/*.lib", "**/*.o", "**/*.bin", "**/*.hex", "**/*.diss")
 CLEAN.include("**/tmp")
 
-LIB_EXCLUDE = ["config", "include", "crt0.asm"]
+LIB_EXCLUDE = ["config", "include", "crt0", ".lib", "tmp"]
 
 Dir.glob("lib/*").each do |path|
     lib = File.basename(path)
-    next if LIB_EXCLUDE.include? lib
+    next if LIB_EXCLUDE.any? { |e| lib.include? e }
 
     dependencies = Rake::FileList.new(File.join("lib", lib, "*.asm"))
     
@@ -28,21 +28,31 @@ Dir.glob("lib/*").each do |path|
     end
 end
 
-rule ".o" => ".c" do |t|
-    system("zcc +#{CONFIG} -nostdlib -I#{LIB_INCLUDE} -c -o #{t.name} #{t.source}")
-end
-
 rule ".o" => ".asm" do |t|
+    puts "Assembling"
     temp_dir = File.join(File.dirname(t.source), "tmp")
     FileUtils.mkdir(temp_dir) unless Dir.exist?(temp_dir)
 
     system("m4 #{t.source} > #{temp_dir}/#{File.basename(t.source)}")
-    system("z80asm -o#{t.name} #{temp_dir}/#{File.basename(t.source)}")
+    system("z80asm -mz80 -o#{t.name} #{temp_dir}/#{File.basename(t.source)}")
 end
 
+# Define a task for each application.
+Dir.glob("utils/*").each do |path|
+    next if Dir.empty? path
+    app = File.basename(path)
 
-task :test => ["test.o", CRT0.ext('.o'), :stdlib] do
-    system("z80asm -Llib/ -lstdlib.lib -r0x8000 -b test.o #{CRT0}")
-    system("appmake +hex -b test.bin --org 0x8000 -o test.hex")
-    system("z88dk-dis -o 0x8000 test.bin > test.diss")
+    dependencies = Rake::FileList.new(File.join("utils", app, "*.c"))
+
+    desc "Build application '#{app}'"
+    task app.to_sym => [:stdlib, "lib/crt0.o"] do
+        puts "Building application"
+        success = system("zcc +#{CONFIG} -O2 -Llib/ -I#{LIB_INCLUDE} --no-crt -lstdlib -Cl\"-r0x8000\" -o utils/#{app}.bin #{dependencies.to_a.join(' ')} lib/crt0.o")
+#        success = system("z80asm -Llib/ -lstdlib -zorg0x8000 -outils/#{app}.bin -b #{dependencies.ext('.o').to_a.join(" ")} lib/crt0.o")
+
+        if success
+            system("appmake +hex -b utils/#{app}.bin --org 0x8000 -o utils/#{app}.hex")
+            system("z88dk-dis -o 0x8000 utils/#{app}.bin > utils/#{app}.diss")
+        end
+    end
 end

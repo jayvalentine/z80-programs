@@ -1,6 +1,7 @@
     ; Implementation of stdio portion of standard library.
 
     PUBLIC  _puts
+    PUBLIC  _getchar
 
     ; Syscall macro.
 define(zsys, `ld      A, $1 << 1
@@ -36,4 +37,12 @@ __puts_done:
 
     ; Successful, return 0.
     ld      HL, 0
+    ret
+
+_getchar:
+    push    AF
+    zsys(SREAD)
+    ld      H, 0
+    ld      L, A
+    pop     AF
     ret
