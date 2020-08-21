@@ -20,12 +20,24 @@ Dir.glob("lib/*").each do |path|
     lib = File.basename(path)
     next if LIB_EXCLUDE.any? { |e| lib.include? e }
 
-    dependencies = Rake::FileList.new(File.join("lib", lib, "*.asm"))
+    task "prebuild_#{lib}".to_sym do
+        if File.exist?(File.join(path, "#{lib}.rb"))
+            require_relative File.join(path, "#{lib}.rb")
+            prebuild()
+            undef prebuild
+        end
+    end
+
+    dependencies = Rake::FileList.new([File.join("lib", lib, "*.asm"), File.join("lib", lib, "*.c")])
     
     desc "Build library '#{lib}'"
-    task lib.to_sym => dependencies.ext('.o') do
+    task lib.to_sym => ["prebuild_#{lib}".to_sym, dependencies.ext('.o')] do
         system("z80asm -xlib/#{lib}.lib #{dependencies.ext('.o').to_a.join(" ")}")
     end
+end
+
+rule ".o" => ".c" do |t|
+    system("zcc +#{CONFIG} -O2 -c -o #{t.name} #{t.source}")
 end
 
 rule ".o" => ".asm" do |t|
