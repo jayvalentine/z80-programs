@@ -29,7 +29,6 @@ Dir.glob("lib/*").each do |path|
 end
 
 rule ".o" => ".asm" do |t|
-    puts "Assembling"
     temp_dir = File.join(File.dirname(t.source), "tmp")
     FileUtils.mkdir(temp_dir) unless Dir.exist?(temp_dir)
 
@@ -46,7 +45,6 @@ Dir.glob("utils/*").each do |path|
 
     desc "Build application '#{app}'"
     task app.to_sym => [:stdlib, "lib/crt0.o"] do
-        puts "Building application"
         success = system("zcc +#{CONFIG} -O2 -Llib/ -I#{LIB_INCLUDE} --no-crt -lstdlib -Cl\"-r0x8000\" -o utils/#{app}.bin #{dependencies.to_a.join(' ')} lib/crt0.o")
 #        success = system("z80asm -Llib/ -lstdlib -zorg0x8000 -outils/#{app}.bin -b #{dependencies.ext('.o').to_a.join(" ")} lib/crt0.o")
 

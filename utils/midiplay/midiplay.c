@@ -16,6 +16,8 @@ int main()
         int in = getchar();
         if (in == EOF) break;
 
+        putchar(in); // Echo to user.
+
         file[file_ptr++] = (char)in;
     }
 

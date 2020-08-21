@@ -1,6 +1,7 @@
     ; Implementation of stdio portion of standard library.
 
     PUBLIC  _puts
+    PUBLIC  _putchar
     PUBLIC  _getchar
 
     ; Syscall macro.
@@ -37,6 +38,16 @@ __puts_done:
 
     ; Successful, return 0.
     ld      HL, 0
+    ret
+
+_putchar:
+    push    AF
+
+    ; Character to send is in HL.
+    ; Because it's a character, we can ignore H.
+    zsys(SWRITE)
+    
+    pop     AF
     ret
 
 _getchar:

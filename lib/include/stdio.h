@@ -9,6 +9,10 @@
 // Prints a string to standard output (serial port).
 int     puts(const char *s) __z88dk_fastcall;
 
+// putchar
+// Prints a character to standard output (serial port).
+int     putchar(int c) __z88dk_fastcall;
+
 // getchar
-// Returns a character from standard output, or EOF if end of stream.
+// Returns a character from standard input (serial port), or EOF if end of stream.
 int     getchar(void);
