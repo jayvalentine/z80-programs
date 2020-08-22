@@ -18,7 +18,7 @@ char file[20000];
 #define TRACK1 (char)0b00100000
 #define TRACK2 (char)0b01000000
 
-char ms_per_tick;
+char half_ms_per_tick;
 
 void sleep_ticks(char ticks) __z88dk_fastcall;
 
@@ -33,6 +33,7 @@ int main()
     {
         char type;
         char note;
+        char channel;
         char delay;
         
         type = getchar();
@@ -43,10 +44,12 @@ int main()
         }
 
         note = getchar();
+        channel = getchar();
         delay = getchar();
 
         *file_ptr++ = type;
         *file_ptr++ = note;
+        *file_ptr++ = channel;
         *file_ptr++ = delay;
 
         // Get terminating line feed.
@@ -69,6 +72,7 @@ int main()
         if (type == MIDI_EOF) break;
 
         char note = *file_ptr++;
+        char channel = *file_ptr++;
         char delay = *file_ptr++;
 
         sleep_ticks(delay);
@@ -127,7 +131,7 @@ int main()
         }
         else if (type == TEMPO)
         {
-            ms_per_tick = note;
+            half_ms_per_tick = note;
             putchar('#');
         }
     }

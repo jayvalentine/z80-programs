@@ -1,5 +1,5 @@
     PUBLIC  _sleep_ticks
-    EXTERN  _ms_per_tick
+    EXTERN  _half_ms_per_tick
 
 _sleep_ticks:
     push    HL
@@ -11,11 +11,14 @@ _sleep_ticks_loop:
     cp      0
     jp      z, _done
 
-    ld      A, (_ms_per_tick)
+    ld      A, (_half_ms_per_tick)
+    cp      0
+    jp      z, _done
+
     ld      B, A
 
 _sleep_ticks_inner:
-    call    _sleep_ms
+    call    _sleep_half_ms
     djnz    _sleep_ticks_inner
 
     dec     L
@@ -27,10 +30,10 @@ _done:
     pop     HL
     ret
 
-    ; Loop that takes exactly one millisecond.
-_sleep_ms:
+    ; Loop that takes exactly half a millisecond.
+_sleep_half_ms:
     push    BC
-    ld      B, 127
+    ld      B, 64
 _sleep_ms_inner:
     nop
     nop
