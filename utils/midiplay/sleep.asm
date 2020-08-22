@@ -1,37 +1,42 @@
     PUBLIC  _sleep_ticks
+    EXTERN  _ms_per_tick
 
 _sleep_ticks:
     push    HL
     push    BC
     push    AF
 
-_outer:
-    ld      A, '~'
-    out     (1), A
-    ld      A, 0
-    or      A, L
+_sleep_ticks_loop:
+    ld      A, L
+    cp      0
     jp      z, _done
 
-    ld      B, 0    ; 256 loops is one tick.
-_inner:
-    ; We want this inner loop to take 257 cycles.
-    push    BC      ; 11 cycles
-    ld      B, 11   ; 7 cycles
+    ld      A, (_ms_per_tick)
+    ld      B, A
 
-_inner_inner:       ; ~21 cycles
-    nop
-    nop
-    djnz    _inner_inner
+_sleep_ticks_inner:
+    call    _sleep_ms
+    djnz    _sleep_ticks_inner
 
-    pop     BC ; 10 cycles
-
-    djnz    _inner
-
-    dec     HL
-    jp      _outer
+    dec     L
+    jp      _sleep_ticks_loop
 
 _done:
     pop     AF
     pop     BC
     pop     HL
+    ret
+
+    ; Loop that takes exactly one millisecond.
+_sleep_ms:
+    push    BC
+    ld      B, 127
+_sleep_ms_inner:
+    nop
+    nop
+    nop
+    nop
+    djnz    _sleep_ms_inner
+_sleep_ms_done:
+    pop     BC
     ret

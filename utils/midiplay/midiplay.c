@@ -4,13 +4,23 @@
 #include <stdio.h>
 #include <midi.h>
 
-char file[4096];
+char file[20000];
 
 #define NOTE_ON (char)0x0f
 #define NOTE_OFF (char)0x0e
+#define DELAY (char)0x0d
+#define TEMPO (char)0x0c
 #define MIDI_EOF (char)0x00
 
-void sleep_ticks(unsigned int ticks) __z88dk_fastcall;
+#define NO_NOTE (char)0
+
+#define TRACK0 (char)0b00000000
+#define TRACK1 (char)0b00100000
+#define TRACK2 (char)0b01000000
+
+char ms_per_tick;
+
+void sleep_ticks(char ticks) __z88dk_fastcall;
 
 int main()
 {
@@ -23,20 +33,21 @@ int main()
     {
         char type;
         char note;
-        char byte0;
-        char byte1;
+        char delay;
         
         type = getchar();
-        if (type == MIDI_EOF) break;
+        if (type == MIDI_EOF)
+        {
+            *file_ptr++ = MIDI_EOF;
+            break;
+        }
 
         note = getchar();
-        byte0 = getchar();
-        byte1 = getchar();
+        delay = getchar();
 
         *file_ptr++ = type;
         *file_ptr++ = note;
-        *file_ptr++ = byte0;
-        *file_ptr++ = byte1;
+        *file_ptr++ = delay;
 
         // Get terminating line feed.
         getchar();
@@ -47,6 +58,10 @@ int main()
 
     // Process commands in file.
     file_ptr = &file[0];
+
+    char current_note0 = NO_NOTE;
+    char current_note1 = NO_NOTE;
+    char current_note2 = NO_NOTE;
     while (1)
     {
         char type = *file_ptr++;
@@ -54,20 +69,66 @@ int main()
         if (type == MIDI_EOF) break;
 
         char note = *file_ptr++;
-        unsigned int byte0 = *file_ptr++;
-        unsigned int byte1 = ((unsigned int)(*file_ptr++)) << 8;
+        char delay = *file_ptr++;
 
-        sleep_ticks(byte1 | byte0);
+        sleep_ticks(delay);
 
         if (type == NOTE_ON)
         {
-            midi_note_on(note);
-            putchar('!');
+            if (current_note0 == NO_NOTE)
+            {
+                current_note0 = note;
+                midi_note_on(TRACK0, note);
+                putchar('!');
+                putchar('0');
+            }
+            else if (current_note1 == NO_NOTE)
+            {
+                current_note1 = note;
+                midi_note_on(TRACK1, note);
+                putchar('!');
+                putchar('1');
+            }
+            else if (current_note2 == NO_NOTE)
+            {
+                current_note2 = note;
+                midi_note_on(TRACK2, note);
+                putchar('!');
+                putchar('2');
+            }
         }
         else if (type == NOTE_OFF)
         {
-            midi_note_off(note);
-            putchar('.');
+            if (current_note0 == note)
+            {
+                current_note0 = NO_NOTE;
+                midi_note_off(TRACK0, note);
+                putchar('.');
+                putchar('0');
+            }
+            else if (current_note1 == note)
+            {
+                current_note1 = NO_NOTE;
+                midi_note_off(TRACK1, note);
+                putchar('.');
+                putchar('1');
+            }
+            else if (current_note2 == note)
+            {
+                current_note2 = NO_NOTE;
+                midi_note_off(TRACK2, note);
+                putchar('.');
+                putchar('2');
+            }
+        }
+        else if (type == DELAY)
+        {
+            putchar('~');
+        }
+        else if (type == TEMPO)
+        {
+            ms_per_tick = note;
+            putchar('#');
         }
     }
 
