@@ -33,20 +33,6 @@ Dir.glob("utils/*").each do |path|
         if success
             system("appmake +hex -b utils/#{app}.bin --org 0x8000 -o utils/#{app}.hex")
             system("z88dk-dis -o 0x8000 utils/#{app}.bin > utils/#{app}.diss")
-
-            # Strip any records which are completely zeros from the resulting hex file
-            File.open("utils/#{app}.hex", "r") do |f_in|
-                File.open("utils/#{app}.hex.tmp", "w+") do |f_out|
-                    f_in.each_line do |l|
-                        unless l[7..-3] =~ /0{32}/
-                            f_out.puts l
-                        end
-                    end
-                end
-            end
-
-            FileUtils.rm("utils/#{app}.hex")
-            FileUtils.mv("utils/#{app}.hex.tmp", "utils/#{app}.hex")
         end
     end
 end
