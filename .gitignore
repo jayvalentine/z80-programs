@@ -9,6 +9,9 @@
 *.bin
 *.diss
 *.err
+*.map
+*.lst
+*.sym
 
 # Libraries
 *.lib
