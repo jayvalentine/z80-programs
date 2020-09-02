@@ -28,7 +28,7 @@ Dir.glob("utils/*").each do |path|
 
     desc "Build application '#{app}'"
     task app.to_sym => (['lib:stdlib'] + extra_includes.map { |i| "lib:#{i}" }) do
-        success = system("zcc +#{CONFIG} -compiler=sccz80 -O2 -SO2 -L#{LIB} -I#{LIB_INCLUDE} --no-crt -crt0 #{CRT0} -lstdlib #{extra_includes.map { |i| "-l#{i}" }.join(" ")} -Cl\"-r0x8000\" -m -o utils/#{app}.bin #{dependencies.to_a.join(' ')}")
+        success = system("zcc +#{CONFIG} -compiler=sccz80 -O2 -SO2 -L#{LIB} -I#{LIB_INCLUDE} -crt0 #{CRT0} -lstdlib #{extra_includes.map { |i| "-l#{i}" }.join(" ")} -Cl\"-r0x8000\" -m -o utils/#{app}.bin #{dependencies.to_a.join(' ')}")
 
         if success
             system("appmake +hex -b utils/#{app}.bin --org 0x8000 -o utils/#{app}.hex")
