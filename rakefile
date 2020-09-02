@@ -4,7 +4,7 @@ require 'fileutils'
 
 load '../z80-libraries/tasks.rake'
 
-CLEAN.include("**/*.o", "**/*.bin", "**/*.hex", "**/*.diss", "**/*.lib")
+CLEAN.include("**/*.o", "**/*.bin", "**/*.hex", "**/*.diss", "**/*.lib", "**/*.lis", "**/*.map", "**/*.sym")
 CLEAN.include("**/tmp")
 
 # Define a task for each application.
@@ -27,8 +27,8 @@ Dir.glob("utils/*").each do |path|
     dependencies = Rake::FileList.new([File.join("utils", app, "*.c"), File.join("utils", app, "*.asm")])
 
     desc "Build application '#{app}'"
-    task app.to_sym => (['lib:stdlib', 'lib:crt0'] + extra_includes.map { |i| "lib:#{i}" }) do
-        success = system("zcc +#{CONFIG} -compiler=sccz80 -O2 -SO2 -L#{LIB} -I#{LIB_INCLUDE} --no-crt -lstdlib #{extra_includes.map { |i| "-l#{i}" }.join(" ")} -Cl\"-r0x8000\" -o utils/#{app}.bin #{CRT0} #{dependencies.to_a.join(' ')}")
+    task app.to_sym => (['lib:stdlib'] + extra_includes.map { |i| "lib:#{i}" }) do
+        success = system("zcc +#{CONFIG} -compiler=sccz80 -O2 -SO2 -L#{LIB} -I#{LIB_INCLUDE} --no-crt -crt0 #{CRT0} -lstdlib #{extra_includes.map { |i| "-l#{i}" }.join(" ")} -Cl\"-r0x8000\" -m -o utils/#{app}.bin #{dependencies.to_a.join(' ')}")
 
         if success
             system("appmake +hex -b utils/#{app}.bin --org 0x8000 -o utils/#{app}.hex")
