@@ -18,7 +18,7 @@ _init:
 
     call    _chkerr
 
-_info:
+_print_info:
     ld      A, %10100000
     out     (DISKPORT+6), A
 
@@ -26,55 +26,17 @@ _info:
     ld      A, $ec
     out     (DISKPORT+7), A
 
-    ld      IX, $9000
-    ld      B, 0
-_info_read:
-    ld      HL, _waiting_dat
+    ; Location of data read from CF-card.
+    ld      DE, $9000
+
+    ld      HL, _info
     call    _puts
 
-    call    _wait_data
-    in      A, (DISKPORT)
-    ld      (IX+1), A
+    call    _read_data
+    call    _print_data
 
-    call    _wait_data
-    in      A, (DISKPORT)
-    ld      (IX), A
-    
-    inc     IX
-    inc     IX
-    
-    djnz    _info_read
-
-_info_read_done:
-    ld      DE, $9000
-    ld      B, 0
-
-_info_read_print:
-    ld      A, (DE)
-    inc     DE
-
-    ld      L, '.'
-
-    cp      $20
-    jp      c, _not_printable
-    ld      L, A
-
-_not_printable:
-    call    _putchar
-
-    ld      A, (DE)
-    inc     DE
-
-    ld      L, '.'
-
-    cp      $20
-    jp      c, _not_printable_2
-    ld      L, A
-
-_not_printable_2:
-    call    _putchar
-
-    djnz    _info_read_print
+    ld      HL, _data
+    call    _puts
 
     ret
 
@@ -126,6 +88,109 @@ _wait_cmd_loop:
     call    _puts
 
     ret
+
+    ; Reads 512 bytes (one sector) from the CF card.
+    ; Reads the data into the location pointed to by DE.
+    ; Assumes a read command has been previously initiated.
+_read_data:
+    push    AF
+    push    BC
+    push    HL
+
+    push    IX
+
+    push    DE
+    pop     IX
+
+    ld      B, 0
+
+__read_data_loop:
+    call    _wait_data
+    in      A, (DISKPORT)
+    ld      (IX+1), A
+
+    call    _wait_data
+    in      A, (DISKPORT)
+    ld      (IX), A
+    
+    inc     IX
+    inc     IX
+    
+    djnz    __read_data_loop
+
+__read_data_done:
+    pop     IX
+
+    pop     HL
+    pop     BC
+    pop     AF
+    ret
+
+    ; Prints the ASCII values of 512 bytes, starting at the location in DE.
+    ; Prints any characters below $20 (i.e. control characters/non-printable) as '.'.
+_print_data:
+    push    AF
+    push    BC
+    push    DE
+    push    HL
+
+    ; 16 loops, printing 32 bytes each time.
+    ld      B, 16
+
+__print_data_loop:
+    push    BC
+    ld      B, 32
+
+__print_line_loop:
+    ld      A, (DE)
+    inc     DE
+
+    ld      L, '.'
+
+    cp      $20
+    jp      c, __not_printable
+    ld      L, A
+
+__not_printable:
+    call    _putchar
+
+    ld      A, (DE)
+    inc     DE
+
+    ld      L, '.'
+
+    cp      $20
+    jp      c, __not_printable_2
+    ld      L, A
+
+__not_printable_2:
+    call    _putchar
+
+    djnz    __print_line_loop
+
+    ld      L, $0d
+    call    _putchar
+    ld      L, $0a
+    call    _putchar
+
+    pop     BC
+
+    djnz    __print_data_loop
+
+    pop     HL
+    pop     DE
+    pop     BC
+    pop     AF
+
+    ret
+
+_info:
+    defm    "Disk info:\n\r\n\r"
+    defb    0
+
+_data:
+    defm    "Sector 0:\n\r\n\r"
+    defb    0
 
 _waiting:
     defm    "Waiting... "
