@@ -31,12 +31,6 @@ _print_info:
     ; Location of info read from CF-card.
     ld      DE, $9000
 
-    ld      HL, _info
-    call    _puts
-
-    call    _read_data
-    call    _print_data
-
 _print_sector0:
     ld      A, $e0
     out     (DISKPORT+6), A
@@ -124,31 +118,25 @@ _read_data:
     push    AF
     push    BC
     push    HL
-
-    push    IX
-
     push    DE
-    pop     IX
 
     ld      B, 0
 
 __read_data_loop:
     call    _wait_data
     in      A, (DISKPORT)
-    ld      (IX+1), A
+    ld      (DE), A
+    inc     DE
 
     call    _wait_data
     in      A, (DISKPORT)
-    ld      (IX), A
-    
-    inc     IX
-    inc     IX
+    ld      (DE), A
+    inc     DE
     
     djnz    __read_data_loop
 
 __read_data_done:
-    pop     IX
-
+    pop     DE
     pop     HL
     pop     BC
     pop     AF
