@@ -8,25 +8,27 @@ _init:
     call    _wait
     ld      A, $04
     out     (DISKPORT+7), A
+    
     call    _wait
+    ld      A, $e0
+    out     (DISKPORT+6), A
 
+    call    _wait
     ld      A, $01
     out     (DISKPORT+1), A
 
+    call    _wait
     ld      A, $ef
     out     (DISKPORT+7), A
 
     call    _chkerr
 
 _print_info:
-    ld      A, %10100000
-    out     (DISKPORT+6), A
-
     call    _wait_cmd
     ld      A, $ec
     out     (DISKPORT+7), A
 
-    ; Location of data read from CF-card.
+    ; Location of info read from CF-card.
     ld      DE, $9000
 
     ld      HL, _info
@@ -35,8 +37,34 @@ _print_info:
     call    _read_data
     call    _print_data
 
+_print_sector0:
+    ld      A, $e0
+    out     (DISKPORT+6), A
+    
+    ld      A, $00
+    out     (DISKPORT+5), A
+    out     (DISKPORT+4), A
+    out     (DISKPORT+3), A
+
+    ; Transfer one sector
+    ld      A, $01
+    out     (DISKPORT+2), A
+
+    ; Read sector command
+    call    _wait_cmd
+    ld      A, $20
+    out     (DISKPORT+7), A
+
+    ; Location of data read from sector 0
+    ld      DE, $9200
+
     ld      HL, _data
     call    _puts
+
+    call    _read_data
+    call    _chkerr
+    
+    call    _print_data
 
     ret
 
