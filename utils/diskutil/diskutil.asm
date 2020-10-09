@@ -1,5 +1,8 @@
     PUBLIC  _main
+
+    ; stdio.h
     EXTERN  _puts
+    EXTERN  _printf
     EXTERN  _putchar
 
     DEFC    DISKPORT = $18
@@ -176,37 +179,33 @@ _print_data:
     push    DE
     push    HL
 
-    ; 16 loops, printing 32 bytes each time.
-    ld      B, 16
+    ; 16 loops, printing 32 bytes each time
+    ld      B, 32
 
 __print_data_loop:
     push    BC
-    ld      B, 32
+    ld      B, 16
 
 __print_line_loop:
     ld      A, (DE)
     inc     DE
 
-    ld      L, '.'
-
-    cp      $20
-    jp      c, __not_printable
+    ; One arg to format - value loaded from memory.
     ld      L, A
+    ld      H, 0
+    push    HL
 
-__not_printable:
-    call    _putchar
+    ; Pointer to format string
+    ld      HL, _byte_format
+    push    HL
 
-    ld      A, (DE)
-    inc     DE
+    ; One variadic arg to printf
+    ld      A, 1
+    call    _printf
 
-    ld      L, '.'
-
-    cp      $20
-    jp      c, __not_printable_2
-    ld      L, A
-
-__not_printable_2:
-    call    _putchar
+    ; Discard arguments.
+    pop     HL
+    pop     HL
 
     djnz    __print_line_loop
 
@@ -252,4 +251,8 @@ _waiting_done:
 
 _error:
     defm    "Error!\n\r"
+    defb    0
+
+_byte_format:
+    defm    "%x "
     defb    0
