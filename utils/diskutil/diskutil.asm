@@ -183,31 +183,23 @@ _print_data:
     ld      B, 32
 
 __print_data_loop:
+    ; We want to print two 'views' of the data.
+    ; One is the hex representation of each byte,
+    ; the other is the ASCII view.
+
+    ; At this point, DE points to the line.
+
     push    BC
     ld      B, 16
 
-__print_line_loop:
-    ld      A, (DE)
-    inc     DE
+    push    DE
+    call    _hex_view
 
-    ; One arg to format - value loaded from memory.
-    ld      L, A
-    ld      H, 0
-    push    HL
+    ld      HL, _view_seperator
+    call    _puts
 
-    ; Pointer to format string
-    ld      HL, _byte_format
-    push    HL
-
-    ; One variadic arg to printf
-    ld      A, 1
-    call    _printf
-
-    ; Discard arguments.
-    pop     HL
-    pop     HL
-
-    djnz    __print_line_loop
+    pop     DE
+    call    _ascii_view
 
     ld      L, $0d
     call    _putchar
@@ -223,6 +215,45 @@ __print_line_loop:
     pop     BC
     pop     AF
 
+    ret
+
+_hex_view:
+    push    AF
+    push    HL
+    push    BC
+
+__hex_view_loop:
+    ld      A, (DE)
+    inc     DE
+
+    ; Pointer to format string
+    ld      HL, _byte_format
+    push    HL
+
+    ; One arg to format - value loaded from memory
+    ld      L, A
+    ld      H, 0
+    push    HL
+
+    ld      A, 1
+    call    _printf
+    
+    ; Discard args
+    pop     HL
+    pop     HL
+
+    djnz    __hex_view_loop
+
+    pop     BC
+    pop     HL
+    pop     AF
+    ret
+
+_ascii_view:
+    ld      L, 'a'
+    call    _putchar
+    inc     DE
+    djnz    _ascii_view
     ret
 
 _info:
@@ -255,4 +286,8 @@ _error:
 
 _byte_format:
     defm    "%x "
+    defb    0
+
+_view_seperator:
+    defm    " | "
     defb    0
