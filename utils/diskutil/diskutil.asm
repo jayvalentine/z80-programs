@@ -235,7 +235,9 @@ __hex_view_loop:
     ld      H, 0
     push    HL
 
-    ld      A, 1
+    ; Is this a z88dk bug or expected behaviour?
+    ; Seems the "variadic args" count includes the fixed argument.
+    ld      A, 2
     call    _printf
     
     ; Discard args
