@@ -32,13 +32,12 @@ _print_info:
     ld      DE, $9000
 
 _print_sector0:
-    ld      A, $e0
-    out     (DISKPORT+6), A
-    
-    ld      A, $00
-    out     (DISKPORT+5), A
-    out     (DISKPORT+4), A
-    out     (DISKPORT+3), A
+    ; Set LBA to sector 0.
+    push    DE
+    ld      DE, $0000
+    ld      HL, $0000
+    call    _set_lba
+    pop     DE
 
     ; Transfer one sector
     ld      A, $01
@@ -60,6 +59,33 @@ _print_sector0:
     
     call    _print_data
 
+    ret
+
+    ; Set the LBA for the CF-card, stored as a 28-bit value
+    ; in DEHL (the top 4 bits of D are ignored).
+_set_lba:
+    push    AF
+    
+    ; Special handling for register 6, as only the bottom half is used
+    ; for LBA.
+    ld      A, D
+
+    ; We only care about the bottom half of this top byte.
+    and     A, %00001111
+
+    ; Master, LBA mode.
+    or      A, %11100000
+    out     (DISKPORT+6), A
+
+    ; Now we can set the rest of the LBA via the other 3 registers.
+    ld      A, E
+    out     (DISKPORT+5), A
+    ld      A, H
+    out     (DISKPORT+4), A
+    ld      A, L
+    out     (DISKPORT+3), A
+    
+    pop     AF
     ret
 
 _chkerr:
