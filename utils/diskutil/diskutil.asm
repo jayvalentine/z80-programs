@@ -252,9 +252,21 @@ __hex_view_loop:
     ret
 
 _ascii_view:
-    ld      L, 'a'
-    call    _putchar
+    ld      A, (DE)
     inc     DE
+
+    ; Default character if actual character is non-printable
+    ld      L, '.'
+
+    ; Printable or non-printable?
+    cp      $20
+    jp      c, __ascii_nonprintable
+
+    ld      L, A
+
+__ascii_nonprintable:
+    call    _putchar
+    
     djnz    _ascii_view
     ret
 
