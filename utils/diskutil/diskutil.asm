@@ -63,16 +63,62 @@ _calculate_fat_size:
     ld      DE, 0
     ld      HL, _temp_sector
     call    _read_sector
-    
-    ld      DE, _temp_sector
-    call    _print_data
 
+    ; Print file names and extensions in root directory.
+    ld      B, 16
+_print_file:
+    push    BC
+
+    ld      DE, _filename
+    ld      B, 8
+_load_filename_loop:
+    ld      A, (HL)
+    inc     HL
+    ld      (DE), A
+    inc     DE
+    djnz    _load_filename_loop
+
+    ; Null-terminator.
+    ld      A, 0
+    ld      (DE), A
+
+    ld      DE, _ext
+    ld      A, '.'
+    ld      (DE), A
+    inc     DE
+
+    ld      B, 3
+_load_ext_loop:
+    ld      A, (HL)
+    inc     HL
+    ld      (DE), A
+    inc     DE
+    djnz    _load_ext_loop
+
+    ; Null-terminator.
+    ld      A, 0
+    ld      (DE), A
+    
     push    HL
+    ld      HL, _filename
+    call    _puts
+    ld      HL, _ext
+    call    _puts
+
     ld      L, $0d
     call    _putchar
     ld      L, $0a
     call    _putchar
+
     pop     HL
+
+    ld      B, 20
+_next_file:
+    inc     HL
+    djnz    _next_file
+
+    pop     BC
+    djnz    _print_file
 
     ret
 
@@ -358,3 +404,8 @@ _num_fats:
     defs    1
 _sectors_per_fat:
     defs    2
+
+_filename:
+    defs    9
+_ext:
+    defs    5
