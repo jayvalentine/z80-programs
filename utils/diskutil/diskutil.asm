@@ -9,12 +9,21 @@
 _main:
     call    _init
 
+    ; Read the boot sector.
+    ld      BC, 0
+    ld      DE, 0
+    ld      HL, _boot_sector
+    call    _read_sector
+
+    ld      DE, _boot_sector
+    call    _print_data
+
     ld      BC, 128
     ld      DE, 0
-    ld      HL, $9200
+    ld      HL, _temp_sector
     call    _read_sector
     
-    ld      DE, $9200
+    ld      DE, _temp_sector
     call    _print_data
 
     push    HL
@@ -135,6 +144,8 @@ __read_data_done:
 _read_sector:
     push    AF
 
+    call    _wait_cmd
+    
     ; Sector number already in DEBC, so we just need
     ; to call the set_lba subroutine.
     call    _set_lba
@@ -144,7 +155,6 @@ _read_sector:
     out     (DISKPORT+2), A
 
     ; Drive ID command
-    call    _wait_cmd
     ld      A, $20
     out     (DISKPORT+7), A
 
@@ -293,3 +303,9 @@ _byte_format:
 _view_seperator:
     defm    " | "
     defb    0
+
+_boot_sector:
+    defs    512
+
+_temp_sector:
+    defs    512
