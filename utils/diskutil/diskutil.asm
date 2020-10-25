@@ -15,10 +15,51 @@ _main:
     ld      HL, _boot_sector
     call    _read_sector
 
-    ld      DE, _boot_sector
-    call    _print_data
+    ; Get some information about the filesystem.
+    ; All values are stored in little-endian format.
+    ld      IX, _boot_sector
+    ld      IY, _disk_info
 
-    ld      BC, 128
+    ; Number of reserved sectors (2 bytes)
+    ld      C, (IX+$0e)
+    ld      B, (IX+$0f)
+    ld      (IY+$00), C
+    ld      (IY+$01), B
+
+    ; Number of FATs (1 byte)
+    ld      C, (IX+$10)
+    ld      (IY+$02), C
+
+    ; Sectors per FAT (2 bytes)
+    ld      C, (IX+$16)
+    ld      B, (IX+$17)
+    ld      (IY+$03), C
+    ld      (IY+$04), B
+
+    ; Calculate number of sectors taken up by FATs
+    ; and put in HL.
+    
+    ld      B, (IY+$02) ; Number of FATs
+
+    ld      E, (IY+$03) ; Sectors per FAT
+    ld      D, (IY+$04) 
+    
+    ld      HL, 0
+_calculate_fat_size:
+    adc     HL, DE
+    djnz    _calculate_fat_size
+
+    ; HL now holds size of FATs, in sectors.
+
+    ; Add to number of reserved regions.
+    ld      E, (IY+$00)
+    ld      D, (IY+$01)
+    adc     HL, DE
+
+    ; HL now holds start of root directory.
+    ; Transfer into BC so we can read the sector.
+    ld      B, H
+    ld      C, L
     ld      DE, 0
     ld      HL, _temp_sector
     call    _read_sector
@@ -145,7 +186,7 @@ _read_sector:
     push    AF
 
     call    _wait_cmd
-    
+
     ; Sector number already in DEBC, so we just need
     ; to call the set_lba subroutine.
     call    _set_lba
@@ -309,3 +350,11 @@ _boot_sector:
 
 _temp_sector:
     defs    512
+
+_disk_info:
+_fat_sector:
+    defs    2
+_num_fats:
+    defs    1
+_sectors_per_fat:
+    defs    2
