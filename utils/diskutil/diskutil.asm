@@ -7,14 +7,30 @@
 
     DEFC    DISKPORT = $18
 _main:
+    call    _init
+
+    ld      BC, 128
+    ld      DE, 0
+    ld      HL, $9200
+    call    _read_sector
+    
+    ld      DE, $9200
+    call    _print_data
+
+    push    HL
+    ld      L, $0d
+    call    _putchar
+    ld      L, $0a
+    call    _putchar
+    pop     HL
+
+    ret
+
 _init:
+    push    AF
     call    _wait
     ld      A, $04
     out     (DISKPORT+7), A
-    
-    call    _wait
-    ld      A, $e0
-    out     (DISKPORT+6), A
 
     call    _wait
     ld      A, $01
@@ -25,49 +41,21 @@ _init:
     out     (DISKPORT+7), A
 
     call    _chkerr
-
-_print_info:
-    call    _wait_cmd
-    ld      A, $ec
-    out     (DISKPORT+7), A
-
-    ; Location of info read from CF-card.
-    ld      DE, $9000
-
-_print_sector0:
-    ; Set LBA to sector 0.
-    push    DE
-    ld      DE, $0000
-    ld      HL, $0000
-    call    _set_lba
-    pop     DE
-
-    ; Transfer one sector
-    ld      A, $01
-    out     (DISKPORT+2), A
-
-    ; Read sector command
-    call    _wait_cmd
-    ld      A, $20
-    out     (DISKPORT+7), A
-
-    ; Location of data read from sector 0
-    ld      DE, $9200
-
-    ld      HL, _data
-    call    _puts
-
-    call    _read_data
-    call    _chkerr
-    
-    call    _print_data
-
+    pop     AF
     ret
 
     ; Set the LBA for the CF-card, stored as a 28-bit value
-    ; in DEHL (the top 4 bits of D are ignored).
+    ; in DEBC (the top 4 bits of D are ignored).
 _set_lba:
     push    AF
+
+    ; Set the lower 3/4ths of the LBA via registers 3-5.
+    ld      A, C
+    out     (DISKPORT+3), A
+    ld      A, B
+    out     (DISKPORT+4), A
+    ld      A, E
+    out     (DISKPORT+5), A
     
     ; Special handling for register 6, as only the bottom half is used
     ; for LBA.
@@ -79,14 +67,6 @@ _set_lba:
     ; Master, LBA mode.
     or      A, %11100000
     out     (DISKPORT+6), A
-
-    ; Now we can set the rest of the LBA via the other 3 registers.
-    ld      A, E
-    out     (DISKPORT+5), A
-    ld      A, H
-    out     (DISKPORT+4), A
-    ld      A, L
-    out     (DISKPORT+3), A
     
     pop     AF
     ret
@@ -103,71 +83,74 @@ _chkerr_noerr:
     ret
 
 _wait:
-    ld      HL, _waiting
-    call    _puts
-
-_wait_loop:
     in      A, (DISKPORT+7)
     and     %10000000
-    jp      nz, _wait_loop
-
-    ld      HL, _waiting_done
-    call    _puts
+    jp      nz, _wait
 
     ret
 
 _wait_data:
-_wait_data_loop:
     in      A, (DISKPORT+7)
     and     %10001000
     xor     %00001000
-    jp      nz, _wait_data_loop
+    jp      nz, _wait_data
 
     ret
 
 _wait_cmd:
-    ld      HL, _waiting_cmd
-    call    _puts
-
-_wait_cmd_loop:
     in      A, (DISKPORT+7)
     and     %11000000
     xor     %01000000
-    jp      nz, _wait_cmd_loop
-
-    ld      HL, _waiting_done
-    call    _puts
+    jp      nz, _wait_cmd
 
     ret
 
     ; Reads 512 bytes (one sector) from the CF card.
-    ; Reads the data into the location pointed to by DE.
+    ; Reads the data into the location pointed to by HL.
     ; Assumes a read command has been previously initiated.
 _read_data:
     push    AF
     push    BC
     push    HL
-    push    DE
 
+    call    _wait_data
+    call    _chkerr
+
+    ld      C, DISKPORT
     ld      B, 0
 
-__read_data_loop:
-    call    _wait_data
-    in      A, (DISKPORT)
-    ld      (DE), A
-    inc     DE
-
-    call    _wait_data
-    in      A, (DISKPORT)
-    ld      (DE), A
-    inc     DE
-    
-    djnz    __read_data_loop
+    ; Load 512 bytes into HL.
+    inir
+    inir
 
 __read_data_done:
-    pop     DE
     pop     HL
     pop     BC
+    pop     AF
+    ret
+
+    ; Read the sector indicated by DEBC,
+    ; into the location pointed to by HL.
+    ; HL must contain 512 bytes of space for the sector.
+_read_sector:
+    push    AF
+
+    ; Sector number already in DEBC, so we just need
+    ; to call the set_lba subroutine.
+    call    _set_lba
+
+    ; Transfer one sector
+    ld      A, $01
+    out     (DISKPORT+2), A
+
+    ; Drive ID command
+    call    _wait_cmd
+    ld      A, $20
+    out     (DISKPORT+7), A
+
+    ; Read 512 bytes from CF-card.
+    call    _read_data
+
     pop     AF
     ret
 
@@ -262,11 +245,16 @@ _ascii_view:
     cp      $20
     jp      c, __ascii_nonprintable
 
+    ld      L, '.'
+
+    cp      $7f
+    jp      nc, __ascii_nonprintable
+
     ld      L, A
 
 __ascii_nonprintable:
     call    _putchar
-    
+
     djnz    _ascii_view
     ret
 
