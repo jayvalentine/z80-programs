@@ -2,6 +2,7 @@
 *.inc
 
 *tmp/
+*.tmp
 
 # Built artefacts
 *.o
