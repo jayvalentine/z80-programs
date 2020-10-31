@@ -9,7 +9,10 @@ void read_sector(char * buf, unsigned long sector);
 void init_disk();
 
 char temp[512];
-char filename_user[13];
+char input[256];
+char * cmd;
+char * argv[256];
+size_t argc;
 
 struct DiskInfo_T
 {
@@ -122,26 +125,47 @@ int main()
     /* Interactive prompt. */
     while (1)
     {
-        for (uint i = 0; i < 13; i++)
-        {
-            filename_user[i] = 0;
-        }
-
         puts("> ");
-        gets(filename_user);
+        gets(input);
+        argc = 0;
 
-        int result = find_file(dir_entry, filename_user);
-        if (result == 0)
+        /* We expect at least one token. */
+        cmd = strtok(input, " ");
+
+        if (cmd == NULL) continue;
+
+        /* Process the rest of the tokens, if any. */
+        while (1)
         {
-            uint file_start_cluster = get_uint(dir_entry, 0x1a);
-            ulong sector = first_sector_of_cluster(file_start_cluster);
+            char * p = strtok(NULL, " ");
+            if (p == NULL) break;
 
-            read_sector(temp, sector);
-            puts(temp);
+            argv[argc] = p;
+            argc++;
         }
-        else
+
+        if (strcmp(cmd, "type") == 0)
         {
-            printf("Cannot find file: %s\n\r", filename_user);
+            if (argc < 1)
+            {
+                puts("Expected at least one argument.\n\r");
+            }
+            else
+            {
+                char * filename = argv[0];
+
+                if (find_file(temp, filename) == 0)
+                {
+                    uint cluster = get_uint(temp, 0x1a);
+                    ulong sector = first_sector_of_cluster(cluster);
+                    read_sector(temp, sector);
+                    puts(temp);
+                }
+                else
+                {
+                    printf("Could not find file: %s\n\r", filename);
+                }
+            }
         }
     }
 }
