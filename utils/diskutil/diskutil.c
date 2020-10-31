@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 
-extern void * nonboot;
+extern char nonboot[512];
 
 typedef unsigned long ulong;
 typedef unsigned int uint;
@@ -9,7 +9,6 @@ typedef unsigned char ubyte;
 
 void read_sector(char * buf, unsigned long sector);
 void write_sector(char * buf, unsigned long sector);
-void init_disk();
 
 char temp[512];
 char input[256];
@@ -104,7 +103,6 @@ int main()
 {
     char dir_entry[32];
 
-    init_disk();
     puts("Disk Utility for Z80\n\r\n\r");
     read_sector(temp, 0);
 
@@ -181,6 +179,25 @@ int main()
 
             /* Write bootable sector. */
             write_sector(temp, 0);
+        }
+        else if (strcmp(cmd, "boot") == 0)
+        {
+            /* Load boot sector and print. */
+            read_sector(temp, 0);
+
+            uint index = 0;
+            for (uint i = 0; i < 32; i++)
+            {
+                for (uint j = 0; j < 16; j++)
+                {
+                    printf("%x ", temp[index]);
+                    index++;
+                }
+
+                puts("\n\r");
+            }
+
+            puts("\n\r");
         }
     }
 }
