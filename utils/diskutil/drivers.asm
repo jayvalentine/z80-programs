@@ -10,6 +10,7 @@
 
     ; Exported functions.
     PUBLIC  _read_sector
+    PUBLIC  _write_sector
     PUBLIC  _init_disk
 
     ; **************************
@@ -88,6 +89,50 @@ _read_sector:
 
     ret
 
+    ; void write_sector(char * buf, unsigned long sector)
+    ;
+    ; Write 512 bytes from <buf> into the sector indicated by <sector>.
+_write_sector:
+    ; Get parameters.
+    ld      HL, 2
+    add     HL, SP
+
+    ; Sector number, little-endian.
+    ; Lowest 16 bytes is at the top of the stack.
+    ld      C, (HL)
+    inc     HL
+    ld      B, (HL)
+    inc     HL
+    ld      E, (HL)
+    inc     HL
+    ld      D, (HL)
+    inc     HL
+
+    ; Sector number now in DEBC, so we just need
+    ; to call the set_lba subroutine.
+    call    _wait_cmd
+    call    _set_lba
+
+    ; Transfer one sector
+    ld      A, $01
+    out     (DISKPORT+2), A
+
+    ; Write sector command.
+    ld      A, $30
+    out     (DISKPORT+7), A
+
+    ; Get pointer param (buf) into HL.
+    ld      E, (HL)
+    inc     HL
+    ld      D, (HL)
+    ld      L, E
+    ld      H, D
+
+    ; Write 512 bytes to CF-card.
+    call    _write_data
+
+    ret
+
     ; **************************
     ; DATA TRANSFER ROUTINES
     ;
@@ -114,6 +159,32 @@ _read_data:
     inir
 
 __read_data_done:
+    pop     HL
+    pop     BC
+    pop     AF
+    ret
+
+    ; Writes 512 bytes (one sector) to the CF card.
+    ; Writes the data from the location pointed to by HL.
+    ; Assumes a write command has been previously initiated.
+_write_data:
+    push    AF
+    push    BC
+    push    HL
+
+    call    _wait_data
+
+    ld      C, DISKPORT
+    ld      B, 0
+
+    ; Write 512 bytes from HL.
+    otir
+    otir
+
+    call    _wait_cmd
+    call    _chkerr
+
+__write_data_done:
     pop     HL
     pop     BC
     pop     AF

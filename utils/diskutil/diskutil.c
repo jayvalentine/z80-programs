@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <string.h>
 
+extern void * nonboot;
+
 typedef unsigned long ulong;
 typedef unsigned int uint;
 typedef unsigned char ubyte;
 
 void read_sector(char * buf, unsigned long sector);
+void write_sector(char * buf, unsigned long sector);
 void init_disk();
 
 char temp[512];
@@ -166,6 +169,18 @@ int main()
                     printf("Could not find file: %s\n\r", filename);
                 }
             }
+        }
+        else if (strcmp(cmd, "makedisk") == 0)
+        {
+            /* First copy the executable code. We'll overlay everything else onto that. */
+            memcpy(temp, nonboot, 512);
+
+            /* Drive signature. */
+            temp[510] = 0xAA;
+            temp[511] = 0x55;
+
+            /* Write bootable sector. */
+            write_sector(temp, 0);
         }
     }
 }
