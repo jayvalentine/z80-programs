@@ -99,7 +99,7 @@ int main()
     char dir_entry[32];
 
     init_disk();
-    puts("Disk Utility for Z80\n\rBy Jay Valentine\n\r\n\r");
+    puts("Disk Utility for Z80\n\r\n\r");
     read_sector(temp, 0);
 
     /* General disk info. */
