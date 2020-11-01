@@ -3,7 +3,7 @@
     ; An image for a non-bootable disk.
 _nonboot:
     jr      _code
-    defs    $003e-$0003
+    defs    $003e-$0002
 _code:
     ld      DE, $8000+_message-_nonboot
 _code_loop:

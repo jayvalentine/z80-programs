@@ -369,6 +369,21 @@ int main()
                     index++;
                 }
 
+                index -= 16;
+
+                puts("| ");
+
+                for (uint j = 0; j < 16; j++)
+                {
+                    char c = temp[index];
+
+                    if (c < ' ')      c = '.';
+                    else if (c > '~') c = '.';
+
+                    printf("%c", c);
+                    index++;
+                }
+
                 puts("\n\r");
             }
 
