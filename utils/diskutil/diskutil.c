@@ -10,7 +10,10 @@ typedef unsigned char ubyte;
 void read_sector(char * buf, unsigned long sector);
 void write_sector(char * buf, unsigned long sector);
 
+void read512(char * buf) __z88dk_fastcall;
+
 char temp[512];
+char boot[512];
 char input[256];
 char * cmd;
 char * argv[256];
@@ -140,10 +143,42 @@ int find_file(char * buf, const char * name)
     return 1;
 }
 
-void format_boot_sector()
+/* Initialises filesystem handlers from disk. */
+void init_disk()
+{
+    read_sector(temp, 0);
+
+    /* General disk info. */
+    disk_info.sectors_per_cluster = temp[0x0d];
+
+    /* Calculate start of FAT. */
+    disk_info.fat_region = get_uint(temp, 0x0e);
+
+    uint sectors_per_fat = get_uint(temp, 0x16);
+    uint number_of_fats = temp[0x10];
+
+    /* Calculate start of root directory. */
+    disk_info.root_region = disk_info.fat_region + (sectors_per_fat * number_of_fats);
+
+    uint root_directory_size = get_uint(temp, 0x11) / 16;
+
+    /* Calculate start of data region. */
+    disk_info.data_region = disk_info.root_region + root_directory_size;
+
+    /* Calculate number of sectors on disk. */
+    disk_info.num_sectors = get_uint(temp, 0x13);
+
+    /* If the small number of sectors is 0, read the large number. */
+    if (disk_info.num_sectors == 0)
+    {
+        disk_info.num_sectors = get_ulong(temp, 0x20);
+    }
+}
+
+void format_boot_sector(char * boot_sector)
 {
     /* First copy the executable code. We'll overlay everything else onto that. */
-    memcpy(temp, nonboot, 512);
+    memcpy(temp, boot_sector, 512);
 
     /* Drive signature. */
     temp[510] = 0xAA;
@@ -244,36 +279,36 @@ void format_fat()
     }
 }
 
-/* Initialises filesystem handlers from disk. */
-void init_disk()
+void format_root()
 {
-    read_sector(temp, 0);
+    /* First entry is the volume label.
+     * The label here MUST be "MAKEDISK" */
+    memcpy(&temp[0], "MAKEDISK   ", 11);
 
-    /* General disk info. */
-    disk_info.sectors_per_cluster = temp[0x0d];
+    /* Attribute bytes. */
+    temp[11] = 0b00001000;
 
-    /* Calculate start of FAT. */
-    disk_info.fat_region = get_uint(temp, 0x0e);
+    /* Second entry is empty. Should be sufficient
+     * to set the first byte to 0. */
+    temp[32] = 0;
 
-    uint sectors_per_fat = get_uint(temp, 0x16);
-    uint number_of_fats = temp[0x10];
+    write_sector(temp, disk_info.root_region);
+}
 
-    /* Calculate start of root directory. */
-    disk_info.root_region = disk_info.fat_region + (sectors_per_fat * number_of_fats);
+/* Format a disk, using the given boot sector. */
+void format(char * boot_sector)
+{
+    /* Format the boot sector. */
+    format_boot_sector(boot_sector);
 
-    uint root_directory_size = get_uint(temp, 0x11) / 16;
+    /* Re-initialise disk based on new boot sector. */
+    init_disk();
 
-    /* Calculate start of data region. */
-    disk_info.data_region = disk_info.root_region + root_directory_size;
+    /* Format FAT. */
+    format_fat();
 
-    /* Calculate number of sectors on disk. */
-    disk_info.num_sectors = get_uint(temp, 0x13);
-
-    /* If the small number of sectors is 0, read the large number. */
-    if (disk_info.num_sectors == 0)
-    {
-        disk_info.num_sectors = get_ulong(temp, 0x20);
-    }
+    /* Now format root directory. */
+    format_root();
 }
 
 int main()
@@ -331,29 +366,18 @@ int main()
         }
         else if (strcmp(cmd, "makedisk") == 0)
         {
-            /* Format the boot sector. */
-            format_boot_sector();
+            puts("Formatting disk...\n\r");
+            format(nonboot);
+        }
+        else if (strcmp(cmd, "makeboot") == 0)
+        {
+            puts("Provide boot sector image (512 bytes binary).\n\rWaiting...\n\r");
 
-            /* Re-initialise disk based on new boot sector. */
-            init_disk();
+            read512(boot);
 
-            /* Format FAT. */
-            format_fat();
+            puts("Formatting bootable disk...\n\r");
 
-            /* Now format root directory. */
-            
-            /* First entry is the volume label.
-             * The label here MUST be "MAKEDISK" */
-            memcpy(&temp[0], "MAKEDISK   ", 11);
-
-            /* Attribute bytes. */
-            temp[11] = 0b00001000;
-
-            /* Second entry is empty. Should be sufficient
-             * to set the first byte to 0. */
-            temp[32] = 0;
-
-            write_sector(temp, disk_info.root_region);
+            format(boot);
         }
         else if (strcmp(cmd, "boot") == 0)
         {
