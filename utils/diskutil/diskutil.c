@@ -378,6 +378,20 @@ int main()
             puts("Formatting bootable disk...\n\r");
 
             format(boot);
+
+            puts("Provide reserved sector image (15 512-byte images)...\n\r");
+            
+            for (uint sector = 1; sector < 16; sector++)
+            {
+                printf("Sector %u... ", sector);
+
+                read512(temp);
+                write_sector(temp, sector);
+
+                puts("Done.\n\r");
+            }
+
+            puts("Done.\n\r");
         }
         else if (strcmp(cmd, "boot") == 0)
         {

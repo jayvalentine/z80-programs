@@ -14,6 +14,8 @@ __read512_loop:
     inc     HL
 
     dec     BC
+    ld      A, B
+    or      C
     jp      nz, __read512_loop
 
 __read512_done:
