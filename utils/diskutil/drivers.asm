@@ -60,5 +60,3 @@ _write_sector:
     rst     48
 
     ret
-
-    ret
