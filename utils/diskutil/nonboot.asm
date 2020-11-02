@@ -12,7 +12,7 @@ _code_loop:
 
     ; Done if we hit null.
     cp      0
-    jp      z, _code_done
+    jr      z, _code_done
 
     ; Print character.
     ld      L, A
